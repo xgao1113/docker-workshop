@@ -28,11 +28,22 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy dependency files first (better layer caching)
 COPY "pyproject.toml" "uv.lock" ".python-version" ./
-# Install dependencies from lock file (ensures reproducible builds)
+# Install OS-level build deps required by some Python packages (psycopg needs libpq)
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+	 build-essential \
+	 libpq-dev \
+	 libssl-dev \
+	 gcc \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies from lock file (ensures reproducible builds)
 RUN uv sync --locked
 
 # Copy application code
-COPY pipeline.py pipeline.py
+COPY ingest_data.py ingest_data.py
 
-# Set entry point
-ENTRYPOINT ["uv", "run", "python", "pipeline.py"]
+# Set entry point so the image runs the ingest script by default
+ENTRYPOINT ["python", "ingest_data.py"]
+# ENTRYPOINT ["uv", "run", "python", "ingest_data.py"]
